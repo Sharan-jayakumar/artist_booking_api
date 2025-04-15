@@ -56,6 +56,12 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "userId",
         as: "artistProfile",
       });
+
+      // Association with Gigs
+      User.hasMany(models.Gig, {
+        foreignKey: "userId",
+        as: "gigs",
+      });
     }
 
     // Instance method to compare password

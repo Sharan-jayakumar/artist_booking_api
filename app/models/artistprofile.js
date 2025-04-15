@@ -87,6 +87,25 @@ module.exports = (sequelize, DataTypes) => {
     {
       sequelize,
       modelName: "ArtistProfile",
+      hooks: {
+        beforeValidate: async (profile, options) => {
+          // Skip validation if the profile is being deleted
+          if (options.type === "DELETE") return;
+
+          // Get the associated user
+          const user = await sequelize.models.User.findByPk(profile.userId);
+          if (!user) {
+            throw new Error("User not found");
+          }
+
+          // Check if user is an artist
+          if (user.userType !== "artist") {
+            throw new Error(
+              "Only artists can create or update artist profiles"
+            );
+          }
+        },
+      },
     }
   );
 
