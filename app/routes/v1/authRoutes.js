@@ -11,7 +11,7 @@ const {
   loginValidation,
   refreshTokenValidation,
 } = require("../../validation/userValidation");
-const validate = require("../../validation/middleware/validate");
+const validate = require("../../middleware/validate");
 
 /**
  * @swagger
@@ -73,7 +73,7 @@ const validate = require("../../validation/middleware/validate");
  *               type: string
  *               description: New JWT access token valid for 15 minutes
  *               example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- * 
+ *
  * /api/v1/auth/register:
  *   post:
  *     summary: Register a new user
@@ -134,7 +134,7 @@ const validate = require("../../validation/middleware/validate");
  *         $ref: '#/components/responses/ValidationError'
  *       500:
  *         $ref: '#/components/schemas/Error'
- * 
+ *
  * /api/v1/auth/login:
  *   post:
  *     summary: Login with email and password (Mobile)
@@ -168,7 +168,7 @@ const validate = require("../../validation/middleware/validate");
  *               $ref: '#/components/schemas/Error'
  *       500:
  *         $ref: '#/components/schemas/Error'
- * 
+ *
  * /api/v1/auth/refresh:
  *   post:
  *     summary: Get new access token (Mobile)
@@ -205,7 +205,7 @@ const validate = require("../../validation/middleware/validate");
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
- * 
+ *
  * /api/v1/auth/logout:
  *   post:
  *     summary: Logout (Mobile)
