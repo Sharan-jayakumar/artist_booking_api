@@ -14,6 +14,20 @@ const options = {
         description: "Development server",
       },
     ],
+    tags: [
+      {
+        name: "API",
+        description: "Base API endpoints",
+      },
+      {
+        name: "API - V1",
+        description: "Version 1 API endpoints",
+      },
+      {
+        name: "API - V1 - Auth",
+        description: "Authentication related endpoints",
+      },
+    ],
     components: {
       schemas: {
         Error: {

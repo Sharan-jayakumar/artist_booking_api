@@ -1,14 +1,15 @@
 const express = require("express");
-const v1Routes = require("./v1");
 const router = express.Router();
+const v1Routes = require("./v1");
 
 /**
  * @swagger
  * /api/:
  *   get:
- *     summary: Welcome route
+ *     summary: API welcome route
  *     description: Returns a welcome message for the API
- *     tags: [API]
+ *     tags:
+ *      - API
  *     responses:
  *       200:
  *         description: Welcome message
@@ -19,15 +20,15 @@ const router = express.Router();
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Welcome to the API. Please use /api/v1/ for version 1.
+ *                   example: Welcome to the Artist Booking API. Please use /api/v1/ for version 1.
  */
 router.get("/", (req, res) => {
   res.json({
-    message: "Welcome to the API. Please use /api/v1/ for version 1.",
+    message:
+      "Welcome to the Artist Booking API. Please use /api/v1/ for version 1.",
   });
 });
 
-// Version 1 routes
 router.use("/v1", v1Routes);
 
 module.exports = router;

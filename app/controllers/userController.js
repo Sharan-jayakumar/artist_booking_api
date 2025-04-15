@@ -1,7 +1,7 @@
 const { User } = require("../models");
 const AppError = require("../utils/AppError");
 
-const createUser = async (req, res, next) => {
+const register = async (req, res, next) => {
   try {
     const { name, email, password, userType, agreeTermsAndConditions } =
       req.body;
@@ -36,5 +36,5 @@ const createUser = async (req, res, next) => {
 };
 
 module.exports = {
-  createUser,
+  register,
 };

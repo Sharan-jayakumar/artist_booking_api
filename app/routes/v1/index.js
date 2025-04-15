@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const userRoutes = require("./userRoutes");
+const authRoutes = require("./authRoutes");
 
 /**
  * @swagger
@@ -8,7 +8,8 @@ const userRoutes = require("./userRoutes");
  *   get:
  *     summary: V1 API welcome route
  *     description: Returns a welcome message for API V1
- *     tags: [V1]
+ *     tags:
+ *      - API - V1
  *     responses:
  *       200:
  *         description: Welcome message for V1 API
@@ -27,7 +28,6 @@ router.get("/", (req, res) => {
   });
 });
 
-// User routes
-router.use("/users", userRoutes);
+router.use("/auth", authRoutes);
 
 module.exports = router;

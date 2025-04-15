@@ -1,6 +1,6 @@
 const { body } = require("express-validator");
 
-const createUserValidation = [
+const registerUserValidation = [
   body("name")
     .trim()
     .notEmpty()
@@ -53,5 +53,5 @@ const createUserValidation = [
 ];
 
 module.exports = {
-  createUserValidation,
+  registerUserValidation,
 };

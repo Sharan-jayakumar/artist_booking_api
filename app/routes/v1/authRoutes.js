@@ -1,15 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const { createUser } = require("../../controllers/userController");
-const { createUserValidation } = require("../../validation/userValidation");
+const { register } = require("../../controllers/userController");
+const { registerUserValidation } = require("../../validation/userValidation");
 const validate = require("../../validation/middleware/validate");
 
 /**
  * @swagger
- * /api/v1/users:
+ * /api/v1/auth/register:
  *   post:
- *     summary: Create a new user
- *     tags: [Users]
+ *     summary: Register a new user
+ *     operationId: registerUser
+ *     tags:
+ *       - API - V1 - Auth
  *     requestBody:
  *       required: true
  *       content:
@@ -48,7 +50,7 @@ const validate = require("../../validation/middleware/validate");
  *                 example: true
  *     responses:
  *       201:
- *         description: User created successfully
+ *         description: User registered successfully
  *         content:
  *           application/json:
  *             schema:
@@ -59,7 +61,7 @@ const validate = require("../../validation/middleware/validate");
  *                   example: success
  *                 message:
  *                   type: string
- *                   example: User created successfully
+ *                   example: User registered successfully
  *                 data:
  *                   $ref: '#/components/schemas/User'
  *       400:
@@ -67,6 +69,6 @@ const validate = require("../../validation/middleware/validate");
  *       500:
  *         $ref: '#/components/schemas/Error'
  */
-router.post("/", createUserValidation, validate, createUser);
+router.post("/register", registerUserValidation, validate, register);
 
 module.exports = router;
