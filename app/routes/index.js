@@ -8,6 +8,7 @@ const v1Routes = require("./v1");
  *   get:
  *     summary: API welcome route
  *     description: Returns a welcome message for the API
+ *    security: []
  *     tags:
  *      - API
  *     responses:

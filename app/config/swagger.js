@@ -27,6 +27,10 @@ const options = {
         name: "API - V1 - Auth",
         description: "Authentication related endpoints",
       },
+      {
+        name: "API - V1 - Profile",
+        description: "Profile management endpoints",
+      },
     ],
     components: {
       schemas: {
@@ -108,6 +112,11 @@ const options = {
         },
       },
     },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
   apis: ["./app/routes/*.js", "./app/routes/v1/*.js", "./app/models/*.js"],
 };

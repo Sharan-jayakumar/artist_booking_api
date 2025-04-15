@@ -12,6 +12,7 @@ const {
   refreshTokenValidation,
 } = require("../../validation/userValidation");
 const validate = require("../../middleware/validate");
+const authenticate = require("../../middleware/auth");
 
 /**
  * @swagger
@@ -78,6 +79,7 @@ const validate = require("../../middleware/validate");
  *   post:
  *     summary: Register a new user
  *     operationId: registerUser
+ *     security: []
  *     tags:
  *       - API - V1 - Auth
  *     requestBody:
@@ -143,6 +145,7 @@ const validate = require("../../middleware/validate");
  *       - Access token should be included in subsequent API requests in the Authorization header
  *       - Refresh token should be securely stored on the device and used to obtain new access tokens
  *     operationId: loginUser
+ *     security: []
  *     tags:
  *       - API - V1 - Auth
  *     requestBody:
@@ -176,6 +179,7 @@ const validate = require("../../middleware/validate");
  *       Mobile endpoint to obtain a new access token using a refresh token.
  *       The refresh token should be sent in the request body.
  *     operationId: refreshToken
+ *     security: []
  *     tags:
  *       - API - V1 - Auth
  *     requestBody:
@@ -225,6 +229,6 @@ const validate = require("../../middleware/validate");
 router.post("/register", registerUserValidation, validate, register);
 router.post("/login", loginValidation, validate, login);
 router.post("/refresh", refreshTokenValidation, validate, refresh);
-router.post("/logout", logout);
+router.post("/logout", authenticate, logout);
 
 module.exports = router;
