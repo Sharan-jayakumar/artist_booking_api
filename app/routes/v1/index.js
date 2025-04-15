@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const userRoutes = require("./userRoutes");
 
 /**
  * @swagger
@@ -26,8 +27,7 @@ router.get("/", (req, res) => {
   });
 });
 
-// Add other versioned routes here
-// Example: router.use("/artists", artistRoutes);
-// Example: router.use("/bookings", bookingRoutes);
+// User routes
+router.use("/users", userRoutes);
 
 module.exports = router;

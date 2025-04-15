@@ -28,6 +28,7 @@ const errorHandler = (err, req, res, next) => {
     res.status(err.statusCode).json({
       status: err.status,
       message: err.message,
+      error: err?.errors,
     });
   } else {
     // Production error response
@@ -35,6 +36,7 @@ const errorHandler = (err, req, res, next) => {
       res.status(err.statusCode).json({
         status: err.status,
         message: err.message,
+        error: err?.errors,
       });
     } else {
       console.error("ERROR", err);
