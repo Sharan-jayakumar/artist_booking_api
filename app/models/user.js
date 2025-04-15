@@ -39,7 +39,7 @@
  */
 "use strict";
 const { Model } = require("sequelize");
-const bcrypt = require('bcrypt');
+const bcrypt = require("bcrypt");
 
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
@@ -50,6 +50,12 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
+
+      // Association with ArtistProfile
+      User.hasOne(models.ArtistProfile, {
+        foreignKey: "userId",
+        as: "artistProfile",
+      });
     }
 
     // Instance method to compare password
@@ -78,11 +84,11 @@ module.exports = (sequelize, DataTypes) => {
           // Hash password before saving
           const salt = bcrypt.genSaltSync(10);
           const hashedPassword = bcrypt.hashSync(value, salt);
-          this.setDataValue('password', hashedPassword);
+          this.setDataValue("password", hashedPassword);
         },
       },
       userType: {
-        type: DataTypes.ENUM('venue', 'artist'),
+        type: DataTypes.ENUM("venue", "artist"),
         allowNull: false,
       },
       agreeTermsAndConditions: {
