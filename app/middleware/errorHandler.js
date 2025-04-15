@@ -1,3 +1,22 @@
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ErrorResponse:
+ *       type: object
+ *       properties:
+ *         status:
+ *           type: string
+ *           example: error
+ *         message:
+ *           type: string
+ *         statusCode:
+ *           type: integer
+ *         stack:
+ *           type: string
+ *           description: Only included in development environment
+ */
+
 const AppError = require("../utils/AppError");
 
 const errorHandler = (err, req, res, next) => {
