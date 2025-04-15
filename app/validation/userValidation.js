@@ -52,6 +52,30 @@ const registerUserValidation = [
     }),
 ];
 
+const loginValidation = [
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Please provide a valid email")
+    .normalizeEmail(),
+  
+  body("password")
+    .notEmpty()
+    .withMessage("Password is required")
+];
+
+const refreshTokenValidation = [
+  body("refreshToken")
+    .notEmpty()
+    .withMessage("Refresh token is required")
+    .isString()
+    .withMessage("Refresh token must be a string"),
+];
+
 module.exports = {
   registerUserValidation,
+  loginValidation,
+  refreshTokenValidation,
 };
