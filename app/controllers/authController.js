@@ -68,10 +68,6 @@ const refresh = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
 
-    if (!refreshToken) {
-      return next(new AppError("No refresh token provided", 401));
-    }
-
     // Verify refresh token
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 

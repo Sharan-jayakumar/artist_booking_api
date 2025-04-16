@@ -5,12 +5,12 @@ const {
   login,
   refresh,
   logout,
-} = require("../../controllers/userController");
+} = require("../../controllers/authController");
 const {
   registerUserValidation,
   loginValidation,
   refreshTokenValidation,
-} = require("../../validation/userValidation");
+} = require("../../validation/authValidation");
 const validate = require("../../middleware/validate");
 const authenticate = require("../../middleware/auth");
 
