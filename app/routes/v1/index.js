@@ -2,12 +2,15 @@ const express = require("express");
 const router = express.Router();
 const authRoutes = require("./authRoutes");
 const profileRoutes = require("./profileRoutes");
+const venueRoutes = require("./venueRoutes");
 
 /**
  * @swagger
  * tags:
  *   - name: API - V1 - Profile
  *     description: Profile management endpoints
+ *   - name: API - V1 - Gigs
+ *     description: Gig management endpoints
  *
  * /api/v1:
  *   get:
@@ -39,5 +42,8 @@ router.use("/auth", authRoutes);
 
 // Profile routes
 router.use("/", profileRoutes);
+
+// Venue routes
+router.use("/venues", venueRoutes);
 
 module.exports = router;

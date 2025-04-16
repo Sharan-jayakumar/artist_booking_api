@@ -153,8 +153,8 @@ describe("Profile Routes", () => {
           password: "password123",
         });
 
+        venueAccessToken = venueLoginResponse.body.data.accessToken;
       artistAccessToken = artistLoginResponse.body.data.accessToken;
-      venueAccessToken = venueLoginResponse.body.data.accessToken;
     });
 
     afterEach(async () => {

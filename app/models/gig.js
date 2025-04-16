@@ -166,8 +166,6 @@ module.exports = (sequelize, DataTypes) => {
       },
       hooks: {
         beforeValidate: async (profile, options) => {
-          // Skip validation if the profile is being deleted
-          if (options.type === "DELETE") return;
 
           // Get the associated user
           const user = await sequelize.models.User.findByPk(profile.userId);
