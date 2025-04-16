@@ -122,6 +122,8 @@ const authenticate = require("../../middleware/auth");
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ * 
+ * /api/v1/artists/profile:
  *   put:
  *     summary: Update artist profile
  *     description: Update or create the authenticated artist's profile and associated links
@@ -194,9 +196,9 @@ const authenticate = require("../../middleware/auth");
  *               $ref: '#/components/schemas/Error'
  */
 
-router.get("/", authenticate, getProfile);
+router.get("/profile", authenticate, getProfile);
 router.put(
-  "/",
+  "/artists/profile",
   authenticate,
   updateArtistProfileValidation,
   validate,

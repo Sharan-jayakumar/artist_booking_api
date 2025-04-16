@@ -38,6 +38,6 @@ router.get("/", (req, res) => {
 router.use("/auth", authRoutes);
 
 // Profile routes
-router.use("/profile", profileRoutes);
+router.use("/", profileRoutes);
 
 module.exports = router;
