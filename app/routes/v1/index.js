@@ -3,6 +3,7 @@ const router = express.Router();
 const authRoutes = require("./authRoutes");
 const profileRoutes = require("./profileRoutes");
 const venueRoutes = require("./venueRoutes");
+const artistGigRoutes = require("./artistGigRoutes");
 
 /**
  * @swagger
@@ -11,6 +12,8 @@ const venueRoutes = require("./venueRoutes");
  *     description: Profile management endpoints
  *   - name: API - V1 - Gigs
  *     description: Gig management endpoints
+ *   - name: API - V1 - Artist Gigs
+ *     description: Artist gig endpoints for viewing available gigs
  *
  * /api/v1:
  *   get:
@@ -45,5 +48,8 @@ router.use("/", profileRoutes);
 
 // Venue routes
 router.use("/venues", venueRoutes);
+
+// Artist gig routes
+router.use("/artists", artistGigRoutes);
 
 module.exports = router;
