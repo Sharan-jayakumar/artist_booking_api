@@ -3,12 +3,15 @@ const router = express.Router();
 const {
   createGig,
   getAllGigs,
-  getGig,
+  getGigById,
+  updateGig,
+  deleteGig,
 } = require("../../controllers/gigController");
 const {
   createGigValidation,
   listGigsValidation,
   getGigByIdValidation,
+  updateGigValidation,
 } = require("../../validation/gigValidation");
 const validate = require("../../middleware/validate");
 const authenticate = require("../../middleware/auth");
@@ -276,10 +279,158 @@ const authenticate = require("../../middleware/auth");
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *   patch:
+ *     summary: Update a gig by ID
+ *     description: Allows venue users to update their own gigs. All fields are optional.
+ *     tags:
+ *       - API - V1 - Gigs
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the gig to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: The name of the gig
+ *                 example: "Updated Jazz Night"
+ *               date:
+ *                 type: string
+ *                 format: date
+ *                 description: The date of the gig (YYYY-MM-DD)
+ *                 example: "2025-06-15"
+ *               venue:
+ *                 type: string
+ *                 description: The venue name or location
+ *                 example: "Blue Note Jazz Club"
+ *               hourlyRate:
+ *                 type: number
+ *                 description: The hourly rate for the artist (either this or fullGigAmount should be provided)
+ *                 example: 85.00
+ *               fullGigAmount:
+ *                 type: number
+ *                 description: The full amount for the gig (either this or hourlyRate should be provided)
+ *                 example: 400.00
+ *               estimatedAudienceSize:
+ *                 type: integer
+ *                 description: Estimated number of audience members
+ *                 example: 150
+ *               startTime:
+ *                 type: string
+ *                 format: date-time
+ *                 description: When the gig starts (must be on the same day as date)
+ *                 example: "2025-06-15T19:30:00Z"
+ *               endTime:
+ *                 type: string
+ *                 format: date-time
+ *                 description: When the gig ends (must be on the same day as date and after startTime)
+ *                 example: "2025-06-15T23:00:00Z"
+ *               equipment:
+ *                 type: string
+ *                 description: Equipment information or requirements
+ *                 example: "Updated equipment requirements"
+ *               jobDetails:
+ *                 type: string
+ *                 description: Additional details about the gig
+ *                 example: "Updated job details"
+ *     responses:
+ *       200:
+ *         description: Gig updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Gig updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     gig:
+ *                       $ref: '#/components/schemas/Gig'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Forbidden - User is not a venue
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Gig not found or user not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *   delete:
+ *     summary: Delete a gig by ID
+ *     description: Allows venue users to delete their own gigs.
+ *     tags:
+ *       - API - V1 - Gigs
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the gig to delete
+ *     responses:
+ *       204:
+ *         description: Gig deleted successfully (No Content)
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Forbidden - User is not a venue
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Gig not found or user not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 
 router.post("/gigs", authenticate, createGigValidation, validate, createGig);
 router.get("/gigs", authenticate, listGigsValidation, validate, getAllGigs);
-router.get("/gigs/:id", authenticate, getGigByIdValidation, validate, getGig);
+router.get(
+  "/gigs/:id",
+  authenticate,
+  getGigByIdValidation,
+  validate,
+  getGigById
+);
+router.patch("/gigs/:id", authenticate, updateGigValidation, validate, updateGig);
+router.delete(
+  "/gigs/:id",
+  authenticate,
+  getGigByIdValidation,
+  validate,
+  deleteGig
+);
 
 module.exports = router;

@@ -102,7 +102,7 @@ const getAllGigs = async (req, res, next) => {
   }
 };
 
-const getGig = async (req, res, next) => {
+const getGigById = async (req, res, next) => {
   try {
     const gigId = req.params.id;
 
@@ -139,8 +139,116 @@ const getGig = async (req, res, next) => {
   }
 };
 
+const updateGig = async (req, res, next) => {
+  try {
+    const gigId = req.params.id;
+
+    // Get user to verify they are a venue
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (user.userType !== "venue") {
+      return next(new AppError("Only venue users can update gigs", 403));
+    }
+
+    // Find the gig ensuring it belongs to the venue user
+    const gig = await Gig.findOne({
+      where: {
+        id: gigId,
+        userId: req.user.id, // Ensure venues can only update their own gigs
+      },
+    });
+
+    if (!gig) {
+      return next(new AppError("Gig not found", 404));
+    }
+
+    // Prepare update data
+    const updateData = {
+      name: req.body.name || gig.name,
+      date: req.body.date || gig.date,
+      venue: req.body.venue || gig.venue,
+      hourlyRate:
+        req.body.hourlyRate === undefined
+          ? gig.hourlyRate
+          : req.body.hourlyRate,
+      fullGigAmount:
+        req.body.fullGigAmount === undefined
+          ? gig.fullGigAmount
+          : req.body.fullGigAmount,
+      estimatedAudienceSize:
+        req.body.estimatedAudienceSize === undefined
+          ? gig.estimatedAudienceSize
+          : req.body.estimatedAudienceSize,
+      startTime: req.body.startTime || gig.startTime,
+      endTime: req.body.endTime || gig.endTime,
+      equipment:
+        req.body.equipment === undefined ? gig.equipment : req.body.equipment,
+      jobDetails:
+        req.body.jobDetails === undefined
+          ? gig.jobDetails
+          : req.body.jobDetails,
+    };
+
+    // Update the gig with error handling
+    await gig.update(updateData).catch((error) => {
+      throw new AppError(error.message, 400);
+    });
+
+    res.json({
+      status: "success",
+      message: "Gig updated successfully",
+      data: {
+        gig: gig.toJSON(),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteGig = async (req, res, next) => {
+  try {
+    const gigId = req.params.id;
+
+    // Get user to verify they are a venue
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (user.userType !== "venue") {
+      return next(new AppError("Only venue users can delete gigs", 403));
+    }
+
+    // Find the gig ensuring it belongs to the venue user
+    const gig = await Gig.findOne({
+      where: {
+        id: gigId,
+        userId: req.user.id, // Ensure venues can only delete their own gigs
+      },
+    });
+
+    if (!gig) {
+      return next(new AppError("Gig not found", 404));
+    }
+
+    // Delete the gig
+    await gig.destroy();
+
+    // Return success with no content
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createGig,
   getAllGigs,
-  getGig,
+  getGigById,
+  updateGig,
+  deleteGig,
 };

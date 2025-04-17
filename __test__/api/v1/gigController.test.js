@@ -80,7 +80,6 @@ describe("Gig Routes", () => {
   });
 
   describe("POST /api/v1/venues/gigs", () => {
-    
     const validGigData = {
       name: "Jazz Night",
       date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -694,7 +693,341 @@ describe("Gig Routes", () => {
         expect(response.body).toHaveProperty("status", "fail");
         expect(response.body).toHaveProperty("error");
 
-        expect(response.body.error[0]).toHaveProperty("message", "Gig ID must be a positive integer");
+        expect(response.body.error[0]).toHaveProperty(
+          "message",
+          "Gig ID must be a positive integer"
+        );
+      });
+    });
+  });
+
+  describe("PATCH /api/v1/venues/gigs/:id", () => {
+    let testGig;
+
+    beforeEach(async () => {
+      // Create a test gig to update
+      const gigData = {
+        userId: venueUserId,
+        name: "Test Update Gig",
+        date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+        venue: "Test Venue",
+        fullGigAmount: 200.0,
+        startTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(19, 0, 0, 0);
+          return date.toISOString();
+        })(),
+        endTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(22, 0, 0, 0);
+          return date.toISOString();
+        })(),
+      };
+      testGig = await Gig.create(gigData);
+    });
+
+    describe("success", () => {
+      it("should successfully update a gig with valid data", async () => {
+        const updateData = {
+          name: "Updated Gig Name",
+          venue: "Updated Venue",
+          equipment: "Updated equipment",
+        };
+
+        const response = await request(app)
+          .patch(`/api/v1/venues/gigs/${testGig.id}`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .send(updateData)
+          .expect("Content-Type", /json/)
+          .expect(200);
+
+        expect(response.body).toHaveProperty("status", "success");
+        expect(response.body).toHaveProperty(
+          "message",
+          "Gig updated successfully"
+        );
+        expect(response.body.data).toHaveProperty("gig");
+
+        // Check updated fields
+        expect(response.body.data.gig).toHaveProperty("name", updateData.name);
+        expect(response.body.data.gig).toHaveProperty(
+          "venue",
+          updateData.venue
+        );
+        expect(response.body.data.gig).toHaveProperty(
+          "equipment",
+          updateData.equipment
+        );
+
+        // Check unchanged fields
+        expect(response.body.data.gig).toHaveProperty(
+          "fullGigAmount",
+          "200.00"
+        );
+        expect(response.body.data.gig).toHaveProperty("userId", venueUserId);
+      });
+
+      it("should successfully update payment option from fullGigAmount to hourlyRate", async () => {
+        const updateData = {
+          hourlyRate: 75.0,
+          fullGigAmount: null,
+        };
+
+        const response = await request(app)
+          .patch(`/api/v1/venues/gigs/${testGig.id}`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .send(updateData)
+          .expect("Content-Type", /json/)
+          .expect(200);
+
+        expect(response.body).toHaveProperty("status", "success");
+        expect(response.body.data.gig).toHaveProperty("hourlyRate", 75);
+        expect(response.body.data.gig).toHaveProperty("fullGigAmount", null);
+      });
+    });
+
+    describe("failure", () => {
+      it("should fail when user is not authenticated", async () => {
+        const response = await request(app)
+          .patch(`/api/v1/venues/gigs/${testGig.id}`)
+          .send({ name: "Updated Name" })
+          .expect("Content-Type", /json/)
+          .expect(401);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "No token provided");
+      });
+
+      it("should fail when artist tries to update venue gig", async () => {
+        const response = await request(app)
+          .patch(`/api/v1/venues/gigs/${testGig.id}`)
+          .set("Authorization", `Bearer ${artistAccessToken}`)
+          .send({ name: "Updated Name" })
+          .expect("Content-Type", /json/)
+          .expect(403);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "Only venue users can update gigs"
+        );
+      });
+
+      it("should fail when updating a non-existent gig", async () => {
+        const nonExistentId = 99999;
+        const response = await request(app)
+          .patch(`/api/v1/venues/gigs/${nonExistentId}`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .send({ name: "Updated Name" })
+          .expect("Content-Type", /json/)
+          .expect(404);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "Gig not found");
+      });
+
+      it("should fail when validation fails", async () => {
+        const invalidData = {
+          name: "A", // Too short
+          date: "invalid-date",
+          hourlyRate: -50, // Negative
+        };
+
+        const response = await request(app)
+          .patch(`/api/v1/venues/gigs/${testGig.id}`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .send(invalidData)
+          .expect("Content-Type", /json/)
+          .expect(400);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("error");
+
+        // Check specific error messages
+        const errorFields = response.body.error.map((err) => err.field);
+        expect(errorFields).toContain("name");
+        expect(errorFields).toContain("date");
+        expect(errorFields).toContain("hourlyRate");
+      });
+
+      it("should fail when venue tries to update another venue's gig", async () => {
+        // Create another venue user
+        const anotherVenueFixture = [
+          {
+            model: "User",
+            data: {
+              name: "Another Venue",
+              email: "anothervenue@example.com",
+              password: "password123",
+              userType: "venue",
+              agreeTermsAndConditions: true,
+            },
+          },
+        ];
+
+        await sequelizeFixtures.loadFixtures(anotherVenueFixture, models);
+
+        // Login with the other venue
+        const anotherVenueLoginResponse = await request(app)
+          .post("/api/v1/auth/login")
+          .send({
+            email: "anothervenue@example.com",
+            password: "password123",
+          });
+
+        const anotherVenueToken =
+          anotherVenueLoginResponse.body.data.accessToken;
+
+        // Try to update the gig that belongs to the first venue
+        const response = await request(app)
+          .patch(`/api/v1/venues/gigs/${testGig.id}`)
+          .set("Authorization", `Bearer ${anotherVenueToken}`)
+          .send({ name: "Updated Name" })
+          .expect("Content-Type", /json/)
+          .expect(404);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "Gig not found");
+
+        // Clean up
+        await User.destroy({ where: { email: "anothervenue@example.com" } });
+      });
+    });
+  });
+
+  describe("DELETE /api/v1/venues/gigs/:id", () => {
+    let testGig;
+
+    beforeEach(async () => {
+      // Create a test gig to delete
+      const gigData = {
+        userId: venueUserId,
+        name: "Test Delete Gig",
+        date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+        venue: "Test Venue",
+        fullGigAmount: 200.0,
+        startTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(19, 0, 0, 0);
+          return date.toISOString();
+        })(),
+        endTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(22, 0, 0, 0);
+          return date.toISOString();
+        })(),
+      };
+      testGig = await Gig.create(gigData);
+    });
+
+    describe("success", () => {
+      it("should successfully delete a gig", async () => {
+        await request(app)
+          .delete(`/api/v1/venues/gigs/${testGig.id}`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .expect(204);
+
+        // Verify gig is deleted
+        const deletedGig = await Gig.findByPk(testGig.id);
+        expect(deletedGig).toBeNull();
+      });
+    });
+
+    describe("failure", () => {
+      it("should fail when user is not authenticated", async () => {
+        const response = await request(app)
+          .delete(`/api/v1/venues/gigs/${testGig.id}`)
+          .expect("Content-Type", /json/)
+          .expect(401);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "No token provided");
+      });
+
+      it("should fail when artist tries to delete venue gig", async () => {
+        const response = await request(app)
+          .delete(`/api/v1/venues/gigs/${testGig.id}`)
+          .set("Authorization", `Bearer ${artistAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(403);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "Only venue users can delete gigs"
+        );
+      });
+
+      it("should fail when deleting a non-existent gig", async () => {
+        const nonExistentId = 99999;
+        const response = await request(app)
+          .delete(`/api/v1/venues/gigs/${nonExistentId}`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(404);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "Gig not found");
+      });
+
+      it("should fail when venue tries to delete another venue's gig", async () => {
+        // Create another venue user
+        const anotherVenueFixture = [
+          {
+            model: "User",
+            data: {
+              name: "Another Venue",
+              email: "anothervenue@example.com",
+              password: "password123",
+              userType: "venue",
+              agreeTermsAndConditions: true,
+            },
+          },
+        ];
+
+        await sequelizeFixtures.loadFixtures(anotherVenueFixture, models);
+
+        // Login with the other venue
+        const anotherVenueLoginResponse = await request(app)
+          .post("/api/v1/auth/login")
+          .send({
+            email: "anothervenue@example.com",
+            password: "password123",
+          });
+
+        const anotherVenueToken =
+          anotherVenueLoginResponse.body.data.accessToken;
+
+        // Try to delete the gig that belongs to the first venue
+        const response = await request(app)
+          .delete(`/api/v1/venues/gigs/${testGig.id}`)
+          .set("Authorization", `Bearer ${anotherVenueToken}`)
+          .expect("Content-Type", /json/)
+          .expect(404);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "Gig not found");
+
+        // Clean up
+        await User.destroy({ where: { email: "anothervenue@example.com" } });
+      });
+
+      it("should fail with invalid gig ID format", async () => {
+        const response = await request(app)
+          .delete("/api/v1/venues/gigs/invalid-id")
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(400);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("error");
+
+        const errorFields = response.body.error.map((err) => err.field);
+        expect(errorFields).toContain("id");
       });
     });
   });
