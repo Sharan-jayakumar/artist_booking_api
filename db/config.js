@@ -14,6 +14,7 @@ module.exports = {
     database: process.env.TEST_DB_NAME,
     host: process.env.DB_HOST,
     dialect: "postgres",
+    logging: false // Disable logging in test environment
   }
   // You can add production & test configs similarly
 };

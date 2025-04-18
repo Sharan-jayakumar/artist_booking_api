@@ -3,6 +3,9 @@ const app = require("../../../app");
 const { User, Gig } = require("../../../app/models");
 const sequelizeFixtures = require("sequelize-fixtures");
 const models = require("../../../app/models");
+const {
+  gigProposals,
+} = require("../../../app/controllers/artistGigController");
 
 describe("Artist Gig Routes", () => {
   let venueUserId;
@@ -387,7 +390,7 @@ describe("Artist Gig Routes", () => {
         .expect("Content-Type", /json/)
         .expect(400);
 
-      expect(response.body).toHaveProperty("status", "error");
+      expect(response.body).toHaveProperty("status", "fail");
       expect(response.body.error).toContainEqual(
         expect.objectContaining({
           message: "Either hourly rate or full gig amount must be provided",
@@ -409,7 +412,7 @@ describe("Artist Gig Routes", () => {
         .expect("Content-Type", /json/)
         .expect(400);
 
-      expect(response.body).toHaveProperty("status", "error");
+      expect(response.body).toHaveProperty("status", "fail");
       expect(response.body.error).toContainEqual(
         expect.objectContaining({
           message: "Cannot provide both hourly rate and full gig amount",
@@ -429,7 +432,7 @@ describe("Artist Gig Routes", () => {
         .expect("Content-Type", /json/)
         .expect(400);
 
-      expect(response.body).toHaveProperty("status", "error");
+      expect(response.body).toHaveProperty("status", "fail");
       expect(response.body.error).toContainEqual(
         expect.objectContaining({
           field: "coverLetter",

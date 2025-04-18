@@ -4,6 +4,7 @@ const authRoutes = require("./authRoutes");
 const profileRoutes = require("./profileRoutes");
 const venueRoutes = require("./venueRoutes");
 const artistGigRoutes = require("./artistGigRoutes");
+const messageRoutes = require("./messageRoutes");
 
 /**
  * @swagger
@@ -51,5 +52,8 @@ router.use("/venues", venueRoutes);
 
 // Artist gig routes
 router.use("/artists", artistGigRoutes);
+
+// Message routes
+router.use("/proposals", messageRoutes);
 
 module.exports = router;

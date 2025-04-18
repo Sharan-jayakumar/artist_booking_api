@@ -2,6 +2,46 @@ const { User, Gig } = require("../models");
 const AppError = require("../utils/AppError");
 const { Op } = require("sequelize");
 
+// Store gig proposals
+const gigProposals = [];
+
+// Store artist ratings
+const artistRatings = [];
+
+// Helper function to get or create artist rating record
+const getOrCreateArtistRating = (artistId) => {
+  let artistRating = artistRatings.find((ar) => ar.artistId === artistId);
+  if (!artistRating) {
+    artistRating = {
+      artistId,
+      ratings: [],
+      averageRating: 0,
+      ratingCount: 0,
+      commonTags: {},
+    };
+    artistRatings.push(artistRating);
+  }
+  return artistRating;
+};
+
+// Helper function to update artist rating statistics
+const updateArtistRatingStats = (artistRating) => {
+  const totalRating = artistRating.ratings.reduce(
+    (sum, r) => sum + r.rating,
+    0
+  );
+  artistRating.averageRating = totalRating / artistRating.ratings.length;
+  artistRating.ratingCount = artistRating.ratings.length;
+
+  // Reset and recalculate tag frequencies
+  artistRating.commonTags = {};
+  artistRating.ratings.forEach((rating) => {
+    rating.tags.forEach((tag) => {
+      artistRating.commonTags[tag] = (artistRating.commonTags[tag] || 0) + 1;
+    });
+  });
+};
+
 /**
  * List all gigs for artists with pagination and search capabilities
  */
@@ -103,50 +143,17 @@ const getGigByIdForArtist = async (req, res, next) => {
   }
 };
 
-const gigProposals = [];
-
-// Store artist ratings
-const artistRatings = [];
-
-// Helper function to get or create artist rating record
-const getOrCreateArtistRating = (artistId) => {
-  let artistRating = artistRatings.find((ar) => ar.artistId === artistId);
-  if (!artistRating) {
-    artistRating = {
-      artistId,
-      ratings: [],
-      averageRating: 0,
-      ratingCount: 0,
-      commonTags: {},
-    };
-    artistRatings.push(artistRating);
-  }
-  return artistRating;
-};
-
-// Helper function to update artist rating statistics
-const updateArtistRatingStats = (artistRating) => {
-  const totalRating = artistRating.ratings.reduce(
-    (sum, r) => sum + r.rating,
-    0
-  );
-  artistRating.averageRating = totalRating / artistRating.ratings.length;
-  artistRating.ratingCount = artistRating.ratings.length;
-
-  // Reset and recalculate tag frequencies
-  artistRating.commonTags = {};
-  artistRating.ratings.forEach((rating) => {
-    rating.tags.forEach((tag) => {
-      artistRating.commonTags[tag] = (artistRating.commonTags[tag] || 0) + 1;
-    });
-  });
-};
-
 // Create a proposal for a gig
 const createGigProposal = async (req, res, next) => {
   try {
     const gigId = parseInt(req.params.id);
-    const artistId = req.user.id; // From auth middleware
+    const artistId = req.user.id;
+
+    // Get user to verify they are an artist
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
 
     if (user.userType !== "artist") {
       return next(new AppError("Only artist users can create proposal", 403));

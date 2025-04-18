@@ -335,7 +335,7 @@ const hireArtist = async (req, res, next) => {
     proposal.status = "in-progress";
     proposal.hiredAt = new Date();
 
-    res.json({
+    res.status(200).json({
       status: "success",
       data: {
         proposal,

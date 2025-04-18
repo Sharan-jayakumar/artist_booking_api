@@ -12,7 +12,7 @@ describe("Profile Routes", () => {
         model: "User",
         data: {
           name: "Test Profile User",
-          email: "testprofile@example.com",
+          email: "testprofile0@example.com",
           password: "password123",
           userType: "artist",
           agreeTermsAndConditions: true,
@@ -28,7 +28,7 @@ describe("Profile Routes", () => {
       const loginResponse = await request(app)
         .post("/api/v1/auth/login")
         .send({
-          email: "testprofile@example.com",
+          email: "testprofile0@example.com",
           password: "password123",
         });
 
@@ -37,7 +37,7 @@ describe("Profile Routes", () => {
 
     afterEach(async () => {
       // Clean up the test user after each test
-      await User.destroy({ where: { email: "testprofile@example.com" } });
+      await User.destroy({ where: { email: "testprofile0@example.com" } });
     });
 
     describe("success", () => {
@@ -56,7 +56,7 @@ describe("Profile Routes", () => {
         const user = response.body.data.user;
         expect(user).toHaveProperty("id");
         expect(user).toHaveProperty("name", "Test Profile User");
-        expect(user).toHaveProperty("email", "testprofile@example.com");
+        expect(user).toHaveProperty("email", "testprofile0@example.com");
         expect(user).toHaveProperty("userType", "artist");
         expect(user).toHaveProperty("agreeTermsAndConditions", true);
         expect(user).not.toHaveProperty("password");
@@ -89,7 +89,7 @@ describe("Profile Routes", () => {
 
       it("should return 404 when user does not exist anymore", async () => {
         // First delete the user while we still have a valid token
-        await User.destroy({ where: { email: "testprofile@example.com" } });
+        await User.destroy({ where: { email: "testprofile0@example.com" } });
 
         // Now try to access the profile with the token of a deleted user
         const response = await request(app)
@@ -112,7 +112,7 @@ describe("Profile Routes", () => {
         model: "User",
         data: {
           name: "Test Artist",
-          email: "testartist@example.com",
+          email: "testartist0@example.com",
           password: "password123",
           userType: "artist",
           agreeTermsAndConditions: true,
@@ -125,7 +125,7 @@ describe("Profile Routes", () => {
         model: "User",
         data: {
           name: "Test Venue",
-          email: "testvenue@example.com",
+          email: "testvenue0@example.com",
           password: "password123",
           userType: "venue",
           agreeTermsAndConditions: true,
@@ -142,14 +142,14 @@ describe("Profile Routes", () => {
       const artistLoginResponse = await request(app)
         .post("/api/v1/auth/login")
         .send({
-          email: "testartist@example.com",
+          email: "testartist0@example.com",
           password: "password123",
         });
 
       const venueLoginResponse = await request(app)
         .post("/api/v1/auth/login")
         .send({
-          email: "testvenue@example.com",
+          email: "testvenue0@example.com",
           password: "password123",
         });
 
@@ -170,7 +170,7 @@ describe("Profile Routes", () => {
       await User.destroy({
         where: {
           email: {
-            [models.Sequelize.Op.in]: ["testartist@example.com", "testvenue@example.com"],
+            [models.Sequelize.Op.in]: ["testartist0@example.com", "testvenue0@example.com"],
           },
         },
       });

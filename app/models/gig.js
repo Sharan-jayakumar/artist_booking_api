@@ -173,10 +173,10 @@ module.exports = (sequelize, DataTypes) => {
             throw new Error("User not found");
           }
 
-          // Check if user is an artist
+          // Check if user is a venue
           if (user.userType !== "venue") {
             throw new Error(
-              "Only artists can create or update artist profiles"
+              "Only venue users can create or manage gigs"
             );
           }
         },

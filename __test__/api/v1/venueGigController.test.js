@@ -1,8 +1,9 @@
 const request = require("supertest");
 const app = require("../../../app");
 const { User, Gig } = require("../../../app/models");
-const sequelizeFixtures = require("sequelize-fixtures");
 const models = require("../../../app/models");
+const { gigProposals } = require("../../../app/controllers/artistGigController");
+const sequelizeFixtures = require("sequelize-fixtures");
 
 describe("Gig Routes", () => {
   let venueUserId;
@@ -15,7 +16,7 @@ describe("Gig Routes", () => {
       model: "User",
       data: {
         name: "Test Venue",
-        email: "testvenue1@example.com",
+        email: "testvenue3@example.com",
         password: "password123",
         userType: "venue",
         agreeTermsAndConditions: true,
@@ -28,7 +29,7 @@ describe("Gig Routes", () => {
       model: "User",
       data: {
         name: "Test Artist",
-        email: "testartist1@example.com",
+        email: "testartist3@example.com",
         password: "password123",
         userType: "artist",
         agreeTermsAndConditions: true,
@@ -43,12 +44,12 @@ describe("Gig Routes", () => {
 
     // Get the venue user ID and artist user ID for verification
     const venueUser = await User.findOne({
-      where: { email: "testvenue1@example.com" },
+      where: { email: "testvenue3@example.com" },
     });
     venueUserId = venueUser.id;
 
     const artistUser = await User.findOne({
-      where: { email: "testartist1@example.com" },
+      where: { email: "testartist3@example.com" },
     });
     artistUserId = artistUser.id;
 
@@ -56,14 +57,14 @@ describe("Gig Routes", () => {
     const venueLoginResponse = await request(app)
       .post("/api/v1/auth/login")
       .send({
-        email: "testvenue1@example.com",
+        email: "testvenue3@example.com",
         password: "password123",
       });
 
     const artistLoginResponse = await request(app)
       .post("/api/v1/auth/login")
       .send({
-        email: "testartist1@example.com",
+        email: "testartist3@example.com",
         password: "password123",
       });
 
@@ -78,8 +79,8 @@ describe("Gig Routes", () => {
       where: {
         email: {
           [models.Sequelize.Op.in]: [
-            "testvenue1@example.com",
-            "testartist1@example.com",
+            "testvenue3@example.com",
+            "testartist3@example.com",
           ],
         },
       },
@@ -232,7 +233,7 @@ describe("Gig Routes", () => {
         expect(response.body).toHaveProperty("status", "fail");
         expect(response.body).toHaveProperty(
           "message",
-          "Only artists can create or update artist profiles"
+          "Only venue users can create or manage gigs"
         );
       });
 
@@ -1221,9 +1222,7 @@ describe("Gig Routes", () => {
       testGig = await Gig.create({
         userId: venueUserId,
         name: "Test Gig for Hiring",
-        date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split("T")[0],
+        date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
         venue: "Test Venue",
         fullGigAmount: 200.0,
         startTime: (() => {
@@ -1235,36 +1234,29 @@ describe("Gig Routes", () => {
           const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
           date.setHours(22, 0, 0, 0);
           return date.toISOString();
-        })(),
+        })()
       });
 
-      // Create a test proposal
+      // Clear existing proposals
+      while (gigProposals.length > 0) {
+        gigProposals.pop();
+      }
+
+      // Create a test proposal with the correct gigId
       testProposal = {
         id: 1,
-        gigId: testGig.id,
+        gigId: testGig.id, // This will now be the actual ID from the database
         artistId: artistUserId,
         hourlyRate: 100,
         fullGigAmount: null,
         coverLetter: "Test cover letter",
         status: "pending",
         createdAt: new Date(),
-        hiredAt: null,
+        hiredAt: null
       };
 
       // Add to gigProposals array
-      const {
-        gigProposals,
-      } = require("../../../app/controllers/artistGigController");
       gigProposals.push(testProposal);
-    });
-
-    afterEach(async () => {
-      // Clean up test data
-      const {
-        gigProposals,
-      } = require("../../../app/controllers/artistGigController");
-      gigProposals.length = 0; // Clear the array
-      await Gig.destroy({ where: { id: testGig.id } });
     });
 
     describe("success", () => {
@@ -1342,9 +1334,30 @@ describe("Gig Routes", () => {
       });
 
       it("should fail when venue does not own the gig", async () => {
-        // Create a gig owned by different venue
+        // Create another venue user
+        const anotherVenueFixture = [
+          {
+            model: "User",
+            data: {
+              name: "Another Venue",
+              email: "anothervenue@example.com",
+              password: "password123",
+              userType: "venue",
+              agreeTermsAndConditions: true,
+            },
+          },
+        ];
+
+        await sequelizeFixtures.loadFixtures(anotherVenueFixture, models);
+
+        // Get the other venue's user ID
+        const anotherVenueUser = await User.findOne({
+          where: { email: "anothervenue@example.com" },
+        });
+
+        // Create a gig owned by the other venue
         const otherVenueGig = await Gig.create({
-          userId: artistUserId, // Using artist ID to simulate different owner
+          userId: anotherVenueUser.id,
           name: "Other Venue Gig",
           date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
             .toISOString()
@@ -1620,15 +1633,7 @@ describe("Gig Routes", () => {
       });
 
       it("should fail when venue does not own the gig", async () => {
-        // Create another venue user
-        const anotherVenueUser = await User.create({
-          name: "Another Venue",
-          email: "anothervenue@example.com",
-          password: "password123",
-          userType: "venue",
-          agreeTermsAndConditions: true,
-        });
-
+    
         const anotherVenueLoginResponse = await request(app)
           .post("/api/v1/auth/login")
           .send({
