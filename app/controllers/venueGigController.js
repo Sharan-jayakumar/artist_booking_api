@@ -1,6 +1,7 @@
 const { User, Gig } = require("../models");
 const AppError = require("../utils/AppError");
 const { Op } = require("sequelize");
+const { gigProposals } = require("./artistGigController");
 
 const createGig = async (req, res, next) => {
   try {
@@ -245,10 +246,53 @@ const deleteGig = async (req, res, next) => {
   }
 };
 
+const getGigProposals = async (req, res, next) => {
+  try {
+    const gigId = parseInt(req.params.id);
+
+    // Get user to verify they are a venue
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (user.userType !== "venue") {
+      return next(new AppError("Only venue users can view gig proposals", 403));
+    }
+
+    // Find the gig ensuring it belongs to the venue user
+    const gig = await Gig.findOne({
+      where: {
+        id: gigId,
+        userId: req.user.id,
+      },
+    });
+
+    if (!gig) {
+      return next(new AppError("Gig not found", 404));
+    }
+
+    // Filter proposals for this gig
+    const proposals = gigProposals.filter(
+      (proposal) => proposal.gigId === gigId
+    );
+
+    res.json({
+      status: "success",
+      data: {
+        proposals,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createGig,
   getAllGigs,
   getGigById,
   updateGig,
   deleteGig,
+  getGigProposals,
 };

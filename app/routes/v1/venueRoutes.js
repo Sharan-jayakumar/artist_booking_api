@@ -6,13 +6,15 @@ const {
   getGigById,
   updateGig,
   deleteGig,
-} = require("../../controllers/gigController");
+  getGigProposals,
+} = require("../../controllers/venueGigController");
 const {
   createGigValidation,
   listGigsValidation,
   getGigByIdValidation,
   updateGigValidation,
-} = require("../../validation/gigValidation");
+  getGigProposalsValidation,
+} = require("../../validation/venueGigValidation");
 const validate = require("../../middleware/validate");
 const authenticate = require("../../middleware/auth");
 
@@ -413,6 +415,80 @@ const authenticate = require("../../middleware/auth");
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *
+ * /api/v1/venues/gigs/{id}/proposals:
+ *   get:
+ *     summary: Get all proposals for a specific gig
+ *     description: Returns all proposals submitted by artists for a specific gig. Only accessible by the venue that created the gig.
+ *     tags:
+ *       - API - V1 - Gigs
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the gig to get proposals for
+ *     responses:
+ *       200:
+ *         description: List of proposals for the gig
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     proposals:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                             example: 1
+ *                           gigId:
+ *                             type: integer
+ *                             example: 123
+ *                           artistId:
+ *                             type: integer
+ *                             example: 456
+ *                           hourlyRate:
+ *                             type: number
+ *                             nullable: true
+ *                             example: 100
+ *                           fullGigAmount:
+ *                             type: number
+ *                             nullable: true
+ *                             example: null
+ *                           coverLetter:
+ *                             type: string
+ *                             example: "I would love to perform at your venue..."
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Forbidden - User is not a venue
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Gig not found or user not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 
 router.post("/gigs", authenticate, createGigValidation, validate, createGig);
@@ -424,7 +500,20 @@ router.get(
   validate,
   getGigById
 );
-router.patch("/gigs/:id", authenticate, updateGigValidation, validate, updateGig);
+router.get(
+  "/gigs/:id/proposals",
+  authenticate,
+  getGigProposalsValidation,
+  validate,
+  getGigProposals
+);
+router.patch(
+  "/gigs/:id",
+  authenticate,
+  updateGigValidation,
+  validate,
+  updateGig
+);
 router.delete(
   "/gigs/:id",
   authenticate,

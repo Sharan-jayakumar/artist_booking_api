@@ -103,7 +103,46 @@ const getGigByIdForArtist = async (req, res, next) => {
   }
 };
 
+const gigProposals = [];
+
+// Create a proposal for a gig
+const createGigProposal = async (req, res, next) => {
+  try {
+    const gigId = parseInt(req.params.id);
+    const artistId = req.user.id; // From auth middleware
+
+    if (user.userType !== "artist") {
+      return next(new AppError("Only artist users can create proposal", 403));
+    }
+
+    // Create the proposal object
+    const proposal = {
+      id: gigProposals.length + 1,
+      gigId,
+      artistId,
+      hourlyRate: req.body.hourlyRate || null,
+      fullGigAmount: req.body.fullGigAmount || null,
+      coverLetter: req.body.coverLetter,
+      createdAt: new Date(),
+    };
+
+    // Add to our in-memory array
+    gigProposals.push(proposal);
+
+    res.status(201).json({
+      status: "success",
+      data: {
+        proposal,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   listGigsForArtist,
   getGigByIdForArtist,
+  createGigProposal,
+  gigProposals, // Export for use in venueGigController
 };

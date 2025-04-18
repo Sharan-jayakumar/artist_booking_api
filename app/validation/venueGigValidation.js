@@ -98,6 +98,14 @@ const getGigByIdValidation = [
     .withMessage("Gig ID must be a positive integer"),
 ];
 
+const getGigProposalsValidation = [
+  param("id")
+    .notEmpty()
+    .withMessage("Gig ID is required")
+    .isInt({ min: 1 })
+    .withMessage("Gig ID must be a positive integer"),
+];
+
 const updateGigValidation = [
   param("id")
     .notEmpty()
@@ -196,4 +204,5 @@ module.exports = {
   listGigsValidation,
   getGigByIdValidation,
   updateGigValidation,
+  getGigProposalsValidation,
 };

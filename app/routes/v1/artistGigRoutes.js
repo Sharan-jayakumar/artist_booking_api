@@ -4,11 +4,13 @@ const router = express.Router();
 const {
   listGigsForArtist,
   getGigByIdForArtist,
+  createGigProposal,
 } = require("../../controllers/artistGigController");
 const {
   listGigsValidation,
   getGigByIdValidation,
-} = require("../../validation/gigValidation");
+  createGigProposalValidation,
+} = require("../../validation/artistGigValidation");
 const validate = require("../../middleware/validate");
 const authenticate = require("../../middleware/auth");
 
@@ -111,6 +113,110 @@ const authenticate = require("../../middleware/auth");
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *
+ * /api/v1/artists/gigs/{id}/proposal:
+ *   post:
+ *     summary: Submit a proposal for a gig
+ *     description: Artists can submit their proposal for a specific gig with either hourly rate or full gig amount
+ *     tags:
+ *       - API - V1 - Artist Gigs
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the gig to submit proposal for
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/GigProposalRequest'
+ *     responses:
+ *       201:
+ *         description: Proposal created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     proposal:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           example: 1
+ *                         gigId:
+ *                           type: integer
+ *                           example: 123
+ *                         artistId:
+ *                           type: integer
+ *                           example: 456
+ *                         hourlyRate:
+ *                           type: number
+ *                           nullable: true
+ *                           example: 100
+ *                         fullGigAmount:
+ *                           type: number
+ *                           nullable: true
+ *                           example: null
+ *                         coverLetter:
+ *                           type: string
+ *                           example: "I would love to perform at your venue..."
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Forbidden - User is not an artist
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Gig not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     GigProposalRequest:
+ *       type: object
+ *       properties:
+ *         hourlyRate:
+ *           type: number
+ *           description: The hourly rate for the gig (either this or fullGigAmount must be provided)
+ *           example: 100
+ *         fullGigAmount:
+ *           type: number
+ *           description: The full amount for the gig (either this or hourlyRate must be provided)
+ *           example: 500
+ *         coverLetter:
+ *           type: string
+ *           description: Cover letter or proposal description
+ *           example: "I would love to perform at your venue. I have 5 years of experience..."
+ *       oneOf:
+ *         - required: [hourlyRate, coverLetter]
+ *         - required: [fullGigAmount, coverLetter]
  */
 
 router.get(
@@ -126,6 +232,13 @@ router.get(
   getGigByIdValidation,
   validate,
   getGigByIdForArtist
+);
+router.post(
+  "/gigs/:id/proposal",
+  authenticate,
+  createGigProposalValidation,
+  validate,
+  createGigProposal
 );
 
 module.exports = router;

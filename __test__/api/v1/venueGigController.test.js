@@ -6,6 +6,7 @@ const models = require("../../../app/models");
 
 describe("Gig Routes", () => {
   let venueUserId;
+  let artistUserId; // Add this variable
   let venueAccessToken;
   let artistAccessToken;
 
@@ -39,11 +40,17 @@ describe("Gig Routes", () => {
     // Load the test users using fixtures
     await sequelizeFixtures.loadFixtures(venueUserFixture, models);
     await sequelizeFixtures.loadFixtures(artistUserFixture, models);
-    // Get the venue user ID for verification
+
+    // Get the venue user ID and artist user ID for verification
     const venueUser = await User.findOne({
       where: { email: "testvenue1@example.com" },
     });
     venueUserId = venueUser.id;
+
+    const artistUser = await User.findOne({
+      where: { email: "testartist1@example.com" },
+    });
+    artistUserId = artistUser.id;
 
     // Login to get access tokens
     const venueLoginResponse = await request(app)
@@ -1028,6 +1035,172 @@ describe("Gig Routes", () => {
 
         const errorFields = response.body.error.map((err) => err.field);
         expect(errorFields).toContain("id");
+      });
+    });
+  });
+
+  describe("GET /api/v1/venues/gigs/:id/proposals", () => {
+    let testGig;
+    let testProposal;
+
+    beforeEach(async () => {
+      // Create a test gig
+      const gigData = {
+        userId: venueUserId,
+        name: "Test Gig for Proposals",
+        date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+        venue: "Test Venue",
+        fullGigAmount: 200.0,
+        startTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(19, 0, 0, 0);
+          return date.toISOString();
+        })(),
+        endTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(22, 0, 0, 0);
+          return date.toISOString();
+        })(),
+      };
+      testGig = await Gig.create(gigData);
+
+      // Create a test proposal
+      const proposalData = {
+        id: 1,
+        gigId: testGig.id,
+        artistId: artistUserId,
+        hourlyRate: 100,
+        fullGigAmount: null,
+        coverLetter: "I would love to perform at your venue",
+        createdAt: new Date()
+      };
+
+      // Reset gigProposals array and add test proposal
+      while (gigProposals.length > 0) {
+        gigProposals.pop();
+      }
+      gigProposals.push(proposalData);
+    });
+
+    describe("success", () => {
+      it("should return all proposals for a gig", async () => {
+        const response = await request(app)
+          .get(`/api/v1/venues/gigs/${testGig.id}/proposals`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(200);
+
+        expect(response.body).toHaveProperty("status", "success");
+        expect(response.body.data).toHaveProperty("proposals");
+        expect(response.body.data.proposals).toBeInstanceOf(Array);
+        expect(response.body.data.proposals.length).toBe(1);
+        expect(response.body.data.proposals[0]).toHaveProperty("gigId", testGig.id);
+        expect(response.body.data.proposals[0]).toHaveProperty("hourlyRate", 100);
+      });
+
+      it("should return empty array when no proposals exist", async () => {
+        // Clear proposals array
+        while (gigProposals.length > 0) {
+          gigProposals.pop();
+        }
+
+        const response = await request(app)
+          .get(`/api/v1/venues/gigs/${testGig.id}/proposals`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(200);
+
+        expect(response.body).toHaveProperty("status", "success");
+        expect(response.body.data.proposals).toBeInstanceOf(Array);
+        expect(response.body.data.proposals.length).toBe(0);
+      });
+    });
+
+    describe("failure", () => {
+      it("should fail when user is not authenticated", async () => {
+        const response = await request(app)
+          .get(`/api/v1/venues/gigs/${testGig.id}/proposals`)
+          .expect("Content-Type", /json/)
+          .expect(401);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "No token provided");
+      });
+
+      it("should fail when artist tries to access venue gig proposals", async () => {
+        const response = await request(app)
+          .get(`/api/v1/venues/gigs/${testGig.id}/proposals`)
+          .set("Authorization", `Bearer ${artistAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(403);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "Only venue users can view gig proposals"
+        );
+      });
+
+      it("should fail with invalid gig ID format", async () => {
+        const response = await request(app)
+          .get("/api/v1/venues/gigs/invalid-id/proposals")
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(400);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("error");
+        expect(response.body.error[0]).toHaveProperty(
+          "message",
+          "Gig ID must be a positive integer"
+        );
+      });
+
+      it("should fail when gig does not exist", async () => {
+        const nonExistentId = 99999;
+        const response = await request(app)
+          .get(`/api/v1/venues/gigs/${nonExistentId}/proposals`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(404);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "Gig not found");
+      });
+
+      it("should fail when venue tries to access another venue's gig proposals", async () => {
+        // Create another venue user
+        const anotherVenueUser = await User.create({
+          name: "Another Venue",
+          email: "anothervenue@example.com",
+          password: "password123",
+          userType: "venue",
+          agreeTermsAndConditions: true,
+        });
+
+        const anotherVenueLoginResponse = await request(app)
+          .post("/api/v1/auth/login")
+          .send({
+            email: "anothervenue@example.com",
+            password: "password123",
+          });
+
+        const anotherVenueToken = anotherVenueLoginResponse.body.data.accessToken;
+
+        // Try to access proposals for the first venue's gig
+        const response = await request(app)
+          .get(`/api/v1/venues/gigs/${testGig.id}/proposals`)
+          .set("Authorization", `Bearer ${anotherVenueToken}`)
+          .expect("Content-Type", /json/)
+          .expect(404);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "Gig not found");
+
+        // Clean up
+        await User.destroy({ where: { email: "anothervenue@example.com" } });
       });
     });
   });

@@ -6,6 +6,7 @@ const models = require("../../../app/models");
 
 describe("Artist Gig Routes", () => {
   let venueUserId;
+  let artistUserId;
   let venueAccessToken;
   let artistAccessToken;
   let testGigs = [];
@@ -41,11 +42,16 @@ describe("Artist Gig Routes", () => {
     await sequelizeFixtures.loadFixtures(venueUserFixture, models);
     await sequelizeFixtures.loadFixtures(artistUserFixture, models);
 
-    // Get the venue user ID for creating gigs
+    // Get the venue user ID and artist user ID
     const venueUser = await User.findOne({
       where: { email: "testvenue2@example.com" },
     });
     venueUserId = venueUser.id;
+
+    const artistUser = await User.findOne({
+      where: { email: "testartist2@example.com" },
+    });
+    artistUserId = artistUser.id;
 
     // Login to get access tokens
     const venueLoginResponse = await request(app)
@@ -323,6 +329,112 @@ describe("Artist Gig Routes", () => {
           "Gig ID must be a positive integer"
         );
       });
+    });
+  });
+
+  describe("POST /api/v1/artists/gigs/:id/proposal", () => {
+    let validProposalData;
+
+    beforeEach(() => {
+      validProposalData = {
+        hourlyRate: 100,
+        coverLetter: "I would love to perform at your venue. I have 5 years of experience."
+      };
+    });
+
+    it("should create a proposal successfully with hourly rate", async () => {
+      const response = await request(app)
+        .post("/api/v1/artists/gigs/1/proposal")
+        .set("Authorization", `Bearer ${artistAccessToken}`)
+        .send(validProposalData)
+        .expect("Content-Type", /json/)
+        .expect(201);
+
+      expect(response.body).toHaveProperty("status", "success");
+      expect(response.body.data.proposal).toHaveProperty("hourlyRate", 100);
+      expect(response.body.data.proposal).toHaveProperty("fullGigAmount", null);
+      expect(response.body.data.proposal).toHaveProperty("coverLetter");
+    });
+
+    it("should create a proposal successfully with full gig amount", async () => {
+      const data = {
+        fullGigAmount: 500,
+        coverLetter: "I would love to perform at your venue."
+      };
+
+      const response = await request(app)
+        .post("/api/v1/artists/gigs/1/proposal")
+        .set("Authorization", `Bearer ${artistAccessToken}`)
+        .send(data)
+        .expect("Content-Type", /json/)
+        .expect(201);
+
+      expect(response.body).toHaveProperty("status", "success");
+      expect(response.body.data.proposal).toHaveProperty("hourlyRate", null);
+      expect(response.body.data.proposal).toHaveProperty("fullGigAmount", 500);
+    });
+
+    it("should fail when neither hourly rate nor full gig amount is provided", async () => {
+      const data = {
+        coverLetter: "I would love to perform at your venue."
+      };
+
+      const response = await request(app)
+        .post("/api/v1/artists/gigs/1/proposal")
+        .set("Authorization", `Bearer ${artistAccessToken}`)
+        .send(data)
+        .expect("Content-Type", /json/)
+        .expect(400);
+
+      expect(response.body).toHaveProperty("status", "error");
+      expect(response.body.error).toContainEqual(
+        expect.objectContaining({
+          message: "Either hourly rate or full gig amount must be provided"
+        })
+      );
+    });
+
+    it("should fail when both hourly rate and full gig amount are provided", async () => {
+      const data = {
+        hourlyRate: 100,
+        fullGigAmount: 500,
+        coverLetter: "I would love to perform at your venue."
+      };
+
+      const response = await request(app)
+        .post("/api/v1/artists/gigs/1/proposal")
+        .set("Authorization", `Bearer ${artistAccessToken}`)
+        .send(data)
+        .expect("Content-Type", /json/)
+        .expect(400);
+
+      expect(response.body).toHaveProperty("status", "error");
+      expect(response.body.error).toContainEqual(
+        expect.objectContaining({
+          message: "Cannot provide both hourly rate and full gig amount"
+        })
+      );
+    });
+
+    it("should fail when cover letter is missing", async () => {
+      const data = {
+        hourlyRate: 100
+      };
+
+      const response = await request(app)
+        .post("/api/v1/artists/gigs/1/proposal")
+        .set("Authorization", `Bearer ${artistAccessToken}`)
+        .send(data)
+        .expect("Content-Type", /json/)
+        .expect(400);
+
+      expect(response.body).toHaveProperty("status", "error");
+      expect(response.body.error).toContainEqual(
+        expect.objectContaining({
+          field: "coverLetter",
+          message: "Cover letter is required"
+        })
+      );
     });
   });
 });
