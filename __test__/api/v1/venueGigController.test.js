@@ -1074,7 +1074,7 @@ describe("Gig Routes", () => {
         hourlyRate: 100,
         fullGigAmount: null,
         coverLetter: "I would love to perform at your venue",
-        createdAt: new Date()
+        createdAt: new Date(),
       };
 
       // Reset gigProposals array and add test proposal
@@ -1096,8 +1096,14 @@ describe("Gig Routes", () => {
         expect(response.body.data).toHaveProperty("proposals");
         expect(response.body.data.proposals).toBeInstanceOf(Array);
         expect(response.body.data.proposals.length).toBe(1);
-        expect(response.body.data.proposals[0]).toHaveProperty("gigId", testGig.id);
-        expect(response.body.data.proposals[0]).toHaveProperty("hourlyRate", 100);
+        expect(response.body.data.proposals[0]).toHaveProperty(
+          "gigId",
+          testGig.id
+        );
+        expect(response.body.data.proposals[0]).toHaveProperty(
+          "hourlyRate",
+          100
+        );
       });
 
       it("should return empty array when no proposals exist", async () => {
@@ -1187,7 +1193,8 @@ describe("Gig Routes", () => {
             password: "password123",
           });
 
-        const anotherVenueToken = anotherVenueLoginResponse.body.data.accessToken;
+        const anotherVenueToken =
+          anotherVenueLoginResponse.body.data.accessToken;
 
         // Try to access proposals for the first venue's gig
         const response = await request(app)
@@ -1198,6 +1205,455 @@ describe("Gig Routes", () => {
 
         expect(response.body).toHaveProperty("status", "fail");
         expect(response.body).toHaveProperty("message", "Gig not found");
+
+        // Clean up
+        await User.destroy({ where: { email: "anothervenue@example.com" } });
+      });
+    });
+  });
+
+  describe("POST /api/v1/venues/proposals/:id/hire", () => {
+    let testProposal;
+    let testGig;
+
+    beforeEach(async () => {
+      // Create a test gig
+      testGig = await Gig.create({
+        userId: venueUserId,
+        name: "Test Gig for Hiring",
+        date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+        venue: "Test Venue",
+        fullGigAmount: 200.0,
+        startTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(19, 0, 0, 0);
+          return date.toISOString();
+        })(),
+        endTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(22, 0, 0, 0);
+          return date.toISOString();
+        })(),
+      });
+
+      // Create a test proposal
+      testProposal = {
+        id: 1,
+        gigId: testGig.id,
+        artistId: artistUserId,
+        hourlyRate: 100,
+        fullGigAmount: null,
+        coverLetter: "Test cover letter",
+        status: "pending",
+        createdAt: new Date(),
+        hiredAt: null,
+      };
+
+      // Add to gigProposals array
+      const {
+        gigProposals,
+      } = require("../../../app/controllers/artistGigController");
+      gigProposals.push(testProposal);
+    });
+
+    afterEach(async () => {
+      // Clean up test data
+      const {
+        gigProposals,
+      } = require("../../../app/controllers/artistGigController");
+      gigProposals.length = 0; // Clear the array
+      await Gig.destroy({ where: { id: testGig.id } });
+    });
+
+    describe("success", () => {
+      it("should successfully hire an artist", async () => {
+        const response = await request(app)
+          .post(`/api/v1/venues/proposals/${testProposal.id}/hire`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(200);
+
+        expect(response.body).toHaveProperty("status", "success");
+        expect(response.body.data.proposal).toHaveProperty(
+          "status",
+          "in-progress"
+        );
+        expect(response.body.data.proposal).toHaveProperty("hiredAt");
+        expect(response.body.data.proposal.id).toBe(testProposal.id);
+      });
+    });
+
+    describe("failure", () => {
+      it("should fail when user is not authenticated", async () => {
+        const response = await request(app)
+          .post(`/api/v1/venues/proposals/${testProposal.id}/hire`)
+          .expect("Content-Type", /json/)
+          .expect(401);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "No token provided");
+      });
+
+      it("should fail when user is not a venue", async () => {
+        const response = await request(app)
+          .post(`/api/v1/venues/proposals/${testProposal.id}/hire`)
+          .set("Authorization", `Bearer ${artistAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(403);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "Only venue users can hire artists"
+        );
+      });
+
+      it("should fail when proposal is not found", async () => {
+        const response = await request(app)
+          .post("/api/v1/venues/proposals/999/hire")
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(404);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "Proposal not found");
+      });
+
+      it("should fail when proposal is already hired", async () => {
+        // First hire the artist
+        await request(app)
+          .post(`/api/v1/venues/proposals/${testProposal.id}/hire`)
+          .set("Authorization", `Bearer ${venueAccessToken}`);
+
+        // Try to hire again
+        const response = await request(app)
+          .post(`/api/v1/venues/proposals/${testProposal.id}/hire`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(400);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "This proposal is no longer pending"
+        );
+      });
+
+      it("should fail when venue does not own the gig", async () => {
+        // Create a gig owned by different venue
+        const otherVenueGig = await Gig.create({
+          userId: artistUserId, // Using artist ID to simulate different owner
+          name: "Other Venue Gig",
+          date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0],
+          venue: "Other Venue",
+          fullGigAmount: 200.0,
+          startTime: new Date(
+            Date.now() + 10 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          endTime: new Date(
+            Date.now() + 10 * 24 * 60 * 60 * 1000 + 3600000
+          ).toISOString(),
+        });
+
+        const otherProposal = {
+          id: 2,
+          gigId: otherVenueGig.id,
+          artistId: artistUserId,
+          hourlyRate: 100,
+          fullGigAmount: null,
+          coverLetter: "Test cover letter",
+          status: "pending",
+          createdAt: new Date(),
+          hiredAt: null,
+        };
+
+        const {
+          gigProposals,
+        } = require("../../../app/controllers/artistGigController");
+        gigProposals.push(otherProposal);
+
+        const response = await request(app)
+          .post(`/api/v1/venues/proposals/${otherProposal.id}/hire`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .expect("Content-Type", /json/)
+          .expect(404);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "Gig not found or you don't have permission"
+        );
+
+        // Clean up
+        await Gig.destroy({ where: { id: otherVenueGig.id } });
+      });
+    });
+  });
+
+  describe("POST /api/v1/venues/gigs/:id/confirm-completion", () => {
+    let testGig;
+    let testProposal;
+
+    beforeEach(async () => {
+      // Create a test gig
+      testGig = await Gig.create({
+        userId: venueUserId,
+        name: "Test Gig for Completion Confirmation",
+        date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+        venue: "Test Venue",
+        fullGigAmount: 200.0,
+        startTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(19, 0, 0, 0);
+          return date.toISOString();
+        })(),
+        endTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(22, 0, 0, 0);
+          return date.toISOString();
+        })(),
+      });
+
+      // Create a test proposal with a completion request
+      testProposal = {
+        id: gigProposals.length + 1,
+        gigId: testGig.id,
+        artistId: artistUserId,
+        hourlyRate: 100,
+        fullGigAmount: null,
+        coverLetter: "Test cover letter",
+        status: "in-progress",
+        createdAt: new Date(),
+        hiredAt: new Date(),
+        completionRequest: {
+          requestedAt: new Date(),
+          confirmationCode: "TEST123",
+          locationAddress: "123 Test St",
+          status: "pending",
+        },
+      };
+
+      // Reset gigProposals array and add test proposal
+      while (gigProposals.length > 0) {
+        gigProposals.pop();
+      }
+      gigProposals.push(testProposal);
+    });
+
+    afterEach(async () => {
+      // Clean up test data
+      while (gigProposals.length > 0) {
+        gigProposals.pop();
+      }
+      await Gig.destroy({ where: { id: testGig.id } });
+    });
+
+    describe("success", () => {
+      it("should successfully confirm completion and rate artist", async () => {
+        const ratingData = {
+          rating: 5,
+          tags: ["Professional", "Fun"],
+          comments: "Great performance, very professional",
+        };
+
+        const response = await request(app)
+          .post(`/api/v1/venues/gigs/${testGig.id}/confirm-completion`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .send(ratingData)
+          .expect("Content-Type", /json/)
+          .expect(200);
+
+        expect(response.body).toHaveProperty("status", "success");
+        expect(response.body.data).toHaveProperty("proposal");
+        expect(response.body.data).toHaveProperty("artistRating");
+
+        // Check proposal updates
+        expect(response.body.data.proposal).toHaveProperty(
+          "status",
+          "completed"
+        );
+        expect(response.body.data.proposal.completionRequest).toHaveProperty(
+          "status",
+          "confirmed"
+        );
+        expect(
+          response.body.data.proposal.completionRequest.venueRating
+        ).toEqual(
+          expect.objectContaining({
+            rating: 5,
+            tags: ["Professional", "Fun"],
+            comments: "Great performance, very professional",
+          })
+        );
+
+        // Check artist rating data
+        expect(response.body.data.artistRating).toHaveProperty(
+          "averageRating",
+          5
+        );
+        expect(response.body.data.artistRating).toHaveProperty(
+          "ratingCount",
+          1
+        );
+        expect(response.body.data.artistRating.commonTags).toEqual({
+          Professional: 1,
+          Fun: 1,
+        });
+      });
+    });
+
+    describe("failure", () => {
+      it("should fail when user is not authenticated", async () => {
+        const response = await request(app)
+          .post(`/api/v1/venues/gigs/${testGig.id}/confirm-completion`)
+          .send({
+            rating: 5,
+            tags: ["Professional"],
+          })
+          .expect("Content-Type", /json/)
+          .expect(401);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "No token provided");
+      });
+
+      it("should fail when user is not a venue", async () => {
+        const response = await request(app)
+          .post(`/api/v1/venues/gigs/${testGig.id}/confirm-completion`)
+          .set("Authorization", `Bearer ${artistAccessToken}`)
+          .send({
+            rating: 5,
+            tags: ["Professional"],
+          })
+          .expect("Content-Type", /json/)
+          .expect(403);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "Only venue users can confirm gig completion"
+        );
+      });
+
+      it("should fail when completion request does not exist", async () => {
+        // Remove completion request from proposal
+        delete testProposal.completionRequest;
+
+        const response = await request(app)
+          .post(`/api/v1/venues/gigs/${testGig.id}/confirm-completion`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .send({
+            rating: 5,
+            tags: ["Professional"],
+          })
+          .expect("Content-Type", /json/)
+          .expect(404);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "No completion request found for this gig"
+        );
+      });
+
+      it("should fail when completion request is not pending", async () => {
+        // Change completion request status to confirmed
+        testProposal.completionRequest.status = "confirmed";
+
+        const response = await request(app)
+          .post(`/api/v1/venues/gigs/${testGig.id}/confirm-completion`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .send({
+            rating: 5,
+            tags: ["Professional"],
+          })
+          .expect("Content-Type", /json/)
+          .expect(400);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "Completion request is not in pending status"
+        );
+      });
+
+      it("should fail with invalid rating", async () => {
+        const response = await request(app)
+          .post(`/api/v1/venues/gigs/${testGig.id}/confirm-completion`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .send({
+            rating: 6, // Invalid rating (> 5)
+            tags: ["Professional"],
+          })
+          .expect("Content-Type", /json/)
+          .expect(400);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body.error[0]).toHaveProperty(
+          "message",
+          "Rating must be between 1 and 5"
+        );
+      });
+
+      it("should fail with invalid tags", async () => {
+        const response = await request(app)
+          .post(`/api/v1/venues/gigs/${testGig.id}/confirm-completion`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .send({
+            rating: 5,
+            tags: ["InvalidTag"], // Invalid tag
+          })
+          .expect("Content-Type", /json/)
+          .expect(400);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body.error[0]).toHaveProperty(
+          "message",
+          "Invalid tags: InvalidTag"
+        );
+      });
+
+      it("should fail when venue does not own the gig", async () => {
+        // Create another venue user
+        const anotherVenueUser = await User.create({
+          name: "Another Venue",
+          email: "anothervenue@example.com",
+          password: "password123",
+          userType: "venue",
+          agreeTermsAndConditions: true,
+        });
+
+        const anotherVenueLoginResponse = await request(app)
+          .post("/api/v1/auth/login")
+          .send({
+            email: "anothervenue@example.com",
+            password: "password123",
+          });
+
+        const anotherVenueToken =
+          anotherVenueLoginResponse.body.data.accessToken;
+
+        const response = await request(app)
+          .post(`/api/v1/venues/gigs/${testGig.id}/confirm-completion`)
+          .set("Authorization", `Bearer ${anotherVenueToken}`)
+          .send({
+            rating: 5,
+            tags: ["Professional"],
+          })
+          .expect("Content-Type", /json/)
+          .expect(404);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "Gig not found or you don't have permission"
+        );
 
         // Clean up
         await User.destroy({ where: { email: "anothervenue@example.com" } });

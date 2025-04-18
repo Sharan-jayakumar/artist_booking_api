@@ -7,6 +7,8 @@ const {
   updateGig,
   deleteGig,
   getGigProposals,
+  hireArtist,
+  confirmGigCompletion,
 } = require("../../controllers/venueGigController");
 const {
   createGigValidation,
@@ -14,6 +16,8 @@ const {
   getGigByIdValidation,
   updateGigValidation,
   getGigProposalsValidation,
+  hireArtistValidation,
+  confirmGigCompletionValidation,
 } = require("../../validation/venueGigValidation");
 const validate = require("../../middleware/validate");
 const authenticate = require("../../middleware/auth");
@@ -489,6 +493,224 @@ const authenticate = require("../../middleware/auth");
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *
+ * /api/v1/venues/proposals/{id}/hire:
+ *   post:
+ *     summary: Hire an artist based on their proposal
+ *     description: Allows venue owners to hire an artist by accepting their proposal. Changes the proposal status to in-progress.
+ *     tags:
+ *       - API - V1 - Gigs
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the proposal to accept
+ *     responses:
+ *       200:
+ *         description: Artist hired successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     proposal:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           example: 1
+ *                         gigId:
+ *                           type: integer
+ *                           example: 123
+ *                         artistId:
+ *                           type: integer
+ *                           example: 456
+ *                         hourlyRate:
+ *                           type: number
+ *                           nullable: true
+ *                           example: 100
+ *                         fullGigAmount:
+ *                           type: number
+ *                           nullable: true
+ *                           example: null
+ *                         coverLetter:
+ *                           type: string
+ *                           example: "I would love to perform at your venue..."
+ *                         status:
+ *                           type: string
+ *                           example: "in-progress"
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                         hiredAt:
+ *                           type: string
+ *                           format: date-time
+ *       400:
+ *         description: Bad Request - Proposal is not in pending status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Forbidden - User is not a venue or doesn't own the gig
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Proposal not found or gig not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *
+ * /api/v1/venues/gigs/{id}/confirm-completion:
+ *   post:
+ *     summary: Confirm gig completion and rate artist
+ *     description: Allows venue owners to confirm gig completion, rate the artist's performance, and provide feedback
+ *     tags:
+ *       - API - V1 - Gigs
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the gig to confirm completion
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - rating
+ *               - tags
+ *             properties:
+ *               rating:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *                 description: Rating for the artist (1-5)
+ *                 example: 5
+ *               tags:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: ["Professional", "Fun", "Crowd Pleaser", "Other"]
+ *                 description: Tags describing the artist's performance
+ *                 example: ["Professional", "Fun"]
+ *               comments:
+ *                 type: string
+ *                 description: Additional comments about the artist's performance
+ *                 example: "Great performance, very punctual and professional"
+ *     responses:
+ *       200:
+ *         description: Completion confirmed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     proposal:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           example: 1
+ *                         gigId:
+ *                           type: integer
+ *                           example: 123
+ *                         artistId:
+ *                           type: integer
+ *                           example: 456
+ *                         status:
+ *                           type: string
+ *                           example: "completed"
+ *                         completionRequest:
+ *                           type: object
+ *                           properties:
+ *                             status:
+ *                               type: string
+ *                               example: "confirmed"
+ *                             confirmationCode:
+ *                               type: string
+ *                             locationAddress:
+ *                               type: string
+ *                             confirmedAt:
+ *                               type: string
+ *                               format: date-time
+ *                             venueRating:
+ *                               type: object
+ *                               properties:
+ *                                 rating:
+ *                                   type: integer
+ *                                   example: 5
+ *                                 tags:
+ *                                   type: array
+ *                                   items:
+ *                                     type: string
+ *                                   example: ["Professional", "Fun"]
+ *                                 comments:
+ *                                   type: string
+ *                     artistRating:
+ *                       type: object
+ *                       properties:
+ *                         artistId:
+ *                           type: integer
+ *                         averageRating:
+ *                           type: number
+ *                           example: 4.5
+ *                         ratingCount:
+ *                           type: integer
+ *                           example: 10
+ *                         commonTags:
+ *                           type: object
+ *                           example: {"Professional": 8, "Fun": 6}
+ *       400:
+ *         description: Bad Request - Invalid input or gig not in correct status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Forbidden - User is not a venue or doesn't own the gig
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Gig, proposal, or completion request not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 
 router.post("/gigs", authenticate, createGigValidation, validate, createGig);
@@ -520,6 +742,20 @@ router.delete(
   getGigByIdValidation,
   validate,
   deleteGig
+);
+router.post(
+  "/proposals/:id/hire",
+  authenticate,
+  hireArtistValidation,
+  validate,
+  hireArtist
+);
+router.post(
+  "/gigs/:id/confirm-completion",
+  authenticate,
+  confirmGigCompletionValidation,
+  validate,
+  confirmGigCompletion
 );
 
 module.exports = router;

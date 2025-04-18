@@ -5,11 +5,13 @@ const {
   listGigsForArtist,
   getGigByIdForArtist,
   createGigProposal,
+  requestGigCompletion,
 } = require("../../controllers/artistGigController");
 const {
   listGigsValidation,
   getGigByIdValidation,
   createGigProposalValidation,
+  requestGigCompletionValidation,
 } = require("../../validation/artistGigValidation");
 const validate = require("../../middleware/validate");
 const authenticate = require("../../middleware/auth");
@@ -193,6 +195,123 @@ const authenticate = require("../../middleware/auth");
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *
+ * /api/v1/artists/gigs/{id}/request-completion:
+ *   post:
+ *     summary: Request completion of a gig
+ *     description: Allows artists to submit a completion request for a gig they were hired for
+ *     tags:
+ *       - API - V1 - Artist Gigs
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the gig to request completion for
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - confirmationCode
+ *               - locationAddress
+ *             properties:
+ *               confirmationCode:
+ *                 type: string
+ *                 description: The confirmation code for the gig
+ *                 example: "GIG123"
+ *               locationAddress:
+ *                 type: string
+ *                 description: The address where the gig was performed
+ *                 example: "123 Main St, City, Country"
+ *     responses:
+ *       200:
+ *         description: Completion request submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     proposal:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           example: 1
+ *                         gigId:
+ *                           type: integer
+ *                           example: 123
+ *                         artistId:
+ *                           type: integer
+ *                           example: 456
+ *                         hourlyRate:
+ *                           type: number
+ *                           nullable: true
+ *                           example: 100
+ *                         fullGigAmount:
+ *                           type: number
+ *                           nullable: true
+ *                           example: null
+ *                         coverLetter:
+ *                           type: string
+ *                           example: "I would love to perform at your venue..."
+ *                         status:
+ *                           type: string
+ *                           example: "in-progress"
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                         hiredAt:
+ *                           type: string
+ *                           format: date-time
+ *                         completionRequest:
+ *                           type: object
+ *                           properties:
+ *                             requestedAt:
+ *                               type: string
+ *                               format: date-time
+ *                             confirmationCode:
+ *                               type: string
+ *                               example: "GIG123"
+ *                             locationAddress:
+ *                               type: string
+ *                               example: "123 Main St, City, Country"
+ *                             status:
+ *                               type: string
+ *                               example: "pending"
+ *       400:
+ *         description: Bad Request - Invalid input or gig not in correct status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Unauthorized - No token provided or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Forbidden - User is not an artist
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Proposal not found or user not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 
 /**
@@ -239,6 +358,13 @@ router.post(
   createGigProposalValidation,
   validate,
   createGigProposal
+);
+router.post(
+  "/gigs/:id/request-completion",
+  authenticate,
+  requestGigCompletionValidation,
+  validate,
+  requestGigCompletion
 );
 
 module.exports = router;

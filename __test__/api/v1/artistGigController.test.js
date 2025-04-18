@@ -338,7 +338,8 @@ describe("Artist Gig Routes", () => {
     beforeEach(() => {
       validProposalData = {
         hourlyRate: 100,
-        coverLetter: "I would love to perform at your venue. I have 5 years of experience."
+        coverLetter:
+          "I would love to perform at your venue. I have 5 years of experience.",
       };
     });
 
@@ -359,7 +360,7 @@ describe("Artist Gig Routes", () => {
     it("should create a proposal successfully with full gig amount", async () => {
       const data = {
         fullGigAmount: 500,
-        coverLetter: "I would love to perform at your venue."
+        coverLetter: "I would love to perform at your venue.",
       };
 
       const response = await request(app)
@@ -376,7 +377,7 @@ describe("Artist Gig Routes", () => {
 
     it("should fail when neither hourly rate nor full gig amount is provided", async () => {
       const data = {
-        coverLetter: "I would love to perform at your venue."
+        coverLetter: "I would love to perform at your venue.",
       };
 
       const response = await request(app)
@@ -389,7 +390,7 @@ describe("Artist Gig Routes", () => {
       expect(response.body).toHaveProperty("status", "error");
       expect(response.body.error).toContainEqual(
         expect.objectContaining({
-          message: "Either hourly rate or full gig amount must be provided"
+          message: "Either hourly rate or full gig amount must be provided",
         })
       );
     });
@@ -398,7 +399,7 @@ describe("Artist Gig Routes", () => {
       const data = {
         hourlyRate: 100,
         fullGigAmount: 500,
-        coverLetter: "I would love to perform at your venue."
+        coverLetter: "I would love to perform at your venue.",
       };
 
       const response = await request(app)
@@ -411,14 +412,14 @@ describe("Artist Gig Routes", () => {
       expect(response.body).toHaveProperty("status", "error");
       expect(response.body.error).toContainEqual(
         expect.objectContaining({
-          message: "Cannot provide both hourly rate and full gig amount"
+          message: "Cannot provide both hourly rate and full gig amount",
         })
       );
     });
 
     it("should fail when cover letter is missing", async () => {
       const data = {
-        hourlyRate: 100
+        hourlyRate: 100,
       };
 
       const response = await request(app)
@@ -432,9 +433,228 @@ describe("Artist Gig Routes", () => {
       expect(response.body.error).toContainEqual(
         expect.objectContaining({
           field: "coverLetter",
-          message: "Cover letter is required"
+          message: "Cover letter is required",
         })
       );
+    });
+  });
+
+  describe("POST /api/v1/artists/gigs/:id/request-completion", () => {
+    let testGig;
+    let testProposal;
+
+    beforeEach(async () => {
+      // Create a test gig
+      testGig = await Gig.create({
+        userId: venueUserId,
+        name: "Test Gig for Completion",
+        date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+        venue: "Test Venue",
+        fullGigAmount: 200.0,
+        startTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(19, 0, 0, 0);
+          return date.toISOString();
+        })(),
+        endTime: (() => {
+          const date = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+          date.setHours(22, 0, 0, 0);
+          return date.toISOString();
+        })(),
+      });
+
+      // Create a test proposal in "in-progress" status
+      testProposal = {
+        id: gigProposals.length + 1,
+        gigId: testGig.id,
+        artistId: artistUserId,
+        hourlyRate: 100,
+        fullGigAmount: null,
+        coverLetter: "Test cover letter",
+        status: "in-progress",
+        createdAt: new Date(),
+        hiredAt: new Date(),
+      };
+
+      // Reset gigProposals array and add test proposal
+      while (gigProposals.length > 0) {
+        gigProposals.pop();
+      }
+      gigProposals.push(testProposal);
+    });
+
+    afterEach(async () => {
+      // Clean up test data
+      while (gigProposals.length > 0) {
+        gigProposals.pop();
+      }
+      await Gig.destroy({ where: { id: testGig.id } });
+    });
+
+    describe("success", () => {
+      it("should successfully submit a completion request", async () => {
+        const completionData = {
+          confirmationCode: "GIG123",
+          locationAddress: "123 Main St, City, Country",
+        };
+
+        const response = await request(app)
+          .post(`/api/v1/artists/gigs/${testGig.id}/request-completion`)
+          .set("Authorization", `Bearer ${artistAccessToken}`)
+          .send(completionData)
+          .expect("Content-Type", /json/)
+          .expect(200);
+
+        expect(response.body).toHaveProperty("status", "success");
+        expect(response.body.data.proposal).toHaveProperty("completionRequest");
+        expect(response.body.data.proposal.completionRequest).toHaveProperty(
+          "confirmationCode",
+          completionData.confirmationCode
+        );
+        expect(response.body.data.proposal.completionRequest).toHaveProperty(
+          "locationAddress",
+          completionData.locationAddress
+        );
+        expect(response.body.data.proposal.completionRequest).toHaveProperty(
+          "status",
+          "pending"
+        );
+        expect(response.body.data.proposal.completionRequest).toHaveProperty(
+          "requestedAt"
+        );
+      });
+    });
+
+    describe("failure", () => {
+      it("should fail when user is not authenticated", async () => {
+        const response = await request(app)
+          .post(`/api/v1/artists/gigs/${testGig.id}/request-completion`)
+          .send({
+            confirmationCode: "GIG123",
+            locationAddress: "123 Main St",
+          })
+          .expect("Content-Type", /json/)
+          .expect(401);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("message", "No token provided");
+      });
+
+      it("should fail when user is not an artist", async () => {
+        const response = await request(app)
+          .post(`/api/v1/artists/gigs/${testGig.id}/request-completion`)
+          .set("Authorization", `Bearer ${venueAccessToken}`)
+          .send({
+            confirmationCode: "GIG123",
+            locationAddress: "123 Main St",
+          })
+          .expect("Content-Type", /json/)
+          .expect(403);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "Only artist users can request gig completion"
+        );
+      });
+
+      it("should fail when proposal does not exist", async () => {
+        // Clear proposals array
+        while (gigProposals.length > 0) {
+          gigProposals.pop();
+        }
+
+        const response = await request(app)
+          .post(`/api/v1/artists/gigs/${testGig.id}/request-completion`)
+          .set("Authorization", `Bearer ${artistAccessToken}`)
+          .send({
+            confirmationCode: "GIG123",
+            locationAddress: "123 Main St",
+          })
+          .expect("Content-Type", /json/)
+          .expect(404);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "No proposal found for this gig"
+        );
+      });
+
+      it("should fail when proposal is not in in-progress status", async () => {
+        // Change proposal status to pending
+        testProposal.status = "pending";
+
+        const response = await request(app)
+          .post(`/api/v1/artists/gigs/${testGig.id}/request-completion`)
+          .set("Authorization", `Bearer ${artistAccessToken}`)
+          .send({
+            confirmationCode: "GIG123",
+            locationAddress: "123 Main St",
+          })
+          .expect("Content-Type", /json/)
+          .expect(400);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty(
+          "message",
+          "Can only request completion for in-progress gigs"
+        );
+      });
+
+      it("should fail with missing required fields", async () => {
+        const response = await request(app)
+          .post(`/api/v1/artists/gigs/${testGig.id}/request-completion`)
+          .set("Authorization", `Bearer ${artistAccessToken}`)
+          .send({})
+          .expect("Content-Type", /json/)
+          .expect(400);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body).toHaveProperty("error");
+
+        const errorFields = response.body.error.map((err) => err.field);
+        expect(errorFields).toContain("confirmationCode");
+        expect(errorFields).toContain("locationAddress");
+      });
+
+      it("should fail with invalid confirmation code length", async () => {
+        const response = await request(app)
+          .post(`/api/v1/artists/gigs/${testGig.id}/request-completion`)
+          .set("Authorization", `Bearer ${artistAccessToken}`)
+          .send({
+            confirmationCode: "AB", // Too short
+            locationAddress: "123 Main St",
+          })
+          .expect("Content-Type", /json/)
+          .expect(400);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body.error[0]).toHaveProperty(
+          "message",
+          "Confirmation code must be between 3 and 50 characters"
+        );
+      });
+
+      it("should fail with invalid location address length", async () => {
+        const response = await request(app)
+          .post(`/api/v1/artists/gigs/${testGig.id}/request-completion`)
+          .set("Authorization", `Bearer ${artistAccessToken}`)
+          .send({
+            confirmationCode: "GIG123",
+            locationAddress: "123", // Too short
+          })
+          .expect("Content-Type", /json/)
+          .expect(400);
+
+        expect(response.body).toHaveProperty("status", "fail");
+        expect(response.body.error[0]).toHaveProperty(
+          "message",
+          "Location address must be between 5 and 500 characters"
+        );
+      });
     });
   });
 });

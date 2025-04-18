@@ -1,7 +1,12 @@
 const { User, Gig } = require("../models");
 const AppError = require("../utils/AppError");
 const { Op } = require("sequelize");
-const { gigProposals } = require("./artistGigController");
+const {
+  gigProposals,
+  artistRatings,
+  getOrCreateArtistRating,
+  updateArtistRatingStats,
+} = require("./artistGigController");
 
 const createGig = async (req, res, next) => {
   try {
@@ -288,6 +293,153 @@ const getGigProposals = async (req, res, next) => {
   }
 };
 
+const hireArtist = async (req, res, next) => {
+  try {
+    const proposalId = parseInt(req.params.id);
+
+    // Get user to verify they are a venue
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (user.userType !== "venue") {
+      return next(new AppError("Only venue users can hire artists", 403));
+    }
+
+    // Find the proposal
+    const proposal = gigProposals.find((p) => p.id === proposalId);
+    if (!proposal) {
+      return next(new AppError("Proposal not found", 404));
+    }
+
+    // Find the gig to verify ownership
+    const gig = await Gig.findOne({
+      where: {
+        id: proposal.gigId,
+        userId: req.user.id, // Ensure venue owns the gig
+      },
+    });
+
+    if (!gig) {
+      return next(
+        new AppError("Gig not found or you don't have permission", 404)
+      );
+    }
+
+    if (proposal.status !== "pending") {
+      return next(new AppError("This proposal is no longer pending", 400));
+    }
+
+    // Update proposal status
+    proposal.status = "in-progress";
+    proposal.hiredAt = new Date();
+
+    res.json({
+      status: "success",
+      data: {
+        proposal,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const confirmGigCompletion = async (req, res, next) => {
+  try {
+    const gigId = parseInt(req.params.id);
+    const venueId = req.user.id;
+
+    // Get user to verify they are a venue
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    if (user.userType !== "venue") {
+      return next(
+        new AppError("Only venue users can confirm gig completion", 403)
+      );
+    }
+
+    // Find the gig to verify ownership
+    const gig = await Gig.findOne({
+      where: {
+        id: gigId,
+        userId: venueId,
+      },
+    });
+
+    if (!gig) {
+      return next(
+        new AppError("Gig not found or you don't have permission", 404)
+      );
+    }
+
+    // Find the proposal with completion request
+    const proposal = gigProposals.find((p) => p.gigId === gigId);
+    if (!proposal) {
+      return next(new AppError("No proposal found for this gig", 404));
+    }
+
+    if (!proposal.completionRequest) {
+      return next(
+        new AppError("No completion request found for this gig", 404)
+      );
+    }
+
+    if (proposal.completionRequest.status !== "pending") {
+      return next(
+        new AppError("Completion request is not in pending status", 400)
+      );
+    }
+
+    // Update proposal and completion request status
+    proposal.status = "completed";
+    proposal.completionRequest.status = "confirmed";
+    proposal.completionRequest.confirmedAt = new Date();
+    proposal.completionRequest.confirmedBy = venueId;
+    proposal.completionRequest.venueRating = {
+      rating: req.body.rating,
+      tags: req.body.tags,
+      comments: req.body.comments || "",
+      ratedBy: venueId,
+    };
+
+    // Add rating to artist's ratings
+    const artistRating = getOrCreateArtistRating(proposal.artistId);
+    artistRating.ratings.push({
+      gigId,
+      proposalId: proposal.id,
+      venueId,
+      venueName: user.name,
+      rating: req.body.rating,
+      tags: req.body.tags,
+      comments: req.body.comments || "",
+      ratedAt: new Date(),
+    });
+
+    // Update artist rating statistics
+    updateArtistRatingStats(artistRating);
+
+    res.json({
+      status: "success",
+      data: {
+        proposal,
+        artistRating: {
+          artistId: proposal.artistId,
+          averageRating: artistRating.averageRating,
+          ratingCount: artistRating.ratingCount,
+          commonTags: artistRating.commonTags,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createGig,
   getAllGigs,
@@ -295,4 +447,6 @@ module.exports = {
   updateGig,
   deleteGig,
   getGigProposals,
+  hireArtist,
+  confirmGigCompletion,
 };

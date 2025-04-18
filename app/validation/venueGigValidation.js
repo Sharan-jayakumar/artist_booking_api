@@ -199,10 +199,55 @@ const updateGigValidation = [
   body("jobDetails").optional().trim(),
 ];
 
+const hireArtistValidation = [
+  param("id")
+    .notEmpty()
+    .withMessage("Proposal ID is required")
+    .isInt({ min: 1 })
+    .withMessage("Proposal ID must be a positive integer"),
+];
+
+const confirmGigCompletionValidation = [
+  param("id")
+    .notEmpty()
+    .withMessage("Gig ID is required")
+    .isInt({ min: 1 })
+    .withMessage("Gig ID must be a positive integer"),
+
+  body("rating")
+    .notEmpty()
+    .withMessage("Rating is required")
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Rating must be between 1 and 5"),
+
+  body("tags")
+    .notEmpty()
+    .withMessage("Tags are required")
+    .isArray()
+    .withMessage("Tags must be an array")
+    .custom((value) => {
+      const allowedTags = ["Professional", "Fun", "Crowd Pleaser", "Other"];
+      const invalidTags = value.filter((tag) => !allowedTags.includes(tag));
+      if (invalidTags.length > 0) {
+        throw new Error(`Invalid tags: ${invalidTags.join(", ")}`);
+      }
+      return true;
+    }),
+
+  body("comments")
+    .optional()
+    .isString()
+    .withMessage("Comments must be a string")
+    .isLength({ max: 1000 })
+    .withMessage("Comments cannot exceed 1000 characters"),
+];
+
 module.exports = {
   createGigValidation,
   listGigsValidation,
   getGigByIdValidation,
   updateGigValidation,
   getGigProposalsValidation,
+  hireArtistValidation,
+  confirmGigCompletionValidation,
 };

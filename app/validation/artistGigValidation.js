@@ -56,8 +56,31 @@ const createGigProposalValidation = [
   }),
 ];
 
+const requestGigCompletionValidation = [
+  param("id")
+    .notEmpty()
+    .withMessage("Gig ID is required")
+    .isInt({ min: 1 })
+    .withMessage("Gig ID must be a positive integer"),
+
+  body("confirmationCode")
+    .notEmpty()
+    .withMessage("Confirmation code is required")
+    .isLength({ min: 3, max: 50 })
+    .withMessage("Confirmation code must be between 3 and 50 characters")
+    .trim(),
+
+  body("locationAddress")
+    .notEmpty()
+    .withMessage("Location address is required")
+    .isLength({ min: 5, max: 500 })
+    .withMessage("Location address must be between 5 and 500 characters")
+    .trim(),
+];
+
 module.exports = {
   listGigsValidation,
   getGigByIdValidation,
   createGigProposalValidation,
+  requestGigCompletionValidation,
 };
